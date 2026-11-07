@@ -1,0 +1,39 @@
+name: FiftyFit checker
+
+on:
+  schedule:
+    - cron: "*/15 5-20 * * *"   # elke 15 min tussen ca. 6:00 en 22:00 NL-tijd (UTC)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fiftyfit-checker
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check plekken
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          WEEKDAYS: ${{ vars.WEEKDAYS }}
+          TIMES: ${{ vars.TIMES }}
+        run: python check_fiftyfit.py
+
+      - name: State opslaan
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add state.json
+          git diff --cached --quiet || git commit -m "update state"
+          git pull --rebase
+          git push
